@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.npm-cache/
+.chrome-profile/
+.shots/
+server/data/*.db
+server/data/*.db-wal
+server/data/*.db-shm
+server/uploads/
+ecosystem.config.cjs
