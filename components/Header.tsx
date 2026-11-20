@@ -1,91 +1,113 @@
+import React, { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Menu, MessageCircle, X } from 'lucide-react';
+import { Link } from '../lib/router';
+import { whatsappLink } from '../lib/format';
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Menu, X } from 'lucide-react';
+const navLinks = [
+  { name: 'Shop', href: '#gallery' },
+  { name: 'Why AERO-FOLD', href: '#philosophy' },
+  { name: 'Wholesale', href: '#wholesale' },
+  { name: 'FAQ', href: '#faq' },
+  { name: 'Contact', href: '#contact' },
+];
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navLinks = [
-    { name: 'Shop', href: '#' },
-    { name: 'Philosophy', href: '#philosophy' },
-    { name: 'Gallery', href: '#gallery' },
-    { name: 'Contact', href: '#contact' },
-  ];
-
   return (
-    <header 
-      className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${
-        isScrolled ? 'bg-[#0a0a0a]/80 backdrop-blur-md py-4' : 'bg-transparent py-8'
+    <header
+      className={`fixed left-0 top-0 z-50 w-full transition-all duration-500 ${
+        isScrolled
+          ? 'bg-[#0a0a0a]/85 py-4 backdrop-blur-md'
+          : 'bg-transparent py-8'
       }`}
     >
-      <div className="container mx-auto px-6 md:px-12 flex justify-between items-center">
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="text-2xl font-black tracking-[0.2em] text-white"
+      <div className="container mx-auto flex items-center justify-between px-6 md:px-12">
+        <Link
+          to="/"
+          aria-label="AERO-FOLD home"
+          className="text-2xl font-black tracking-[0.2em] text-white transition-opacity hover:opacity-70"
         >
           AERO-FOLD
-        </motion.div>
+        </Link>
 
-        <nav className="hidden md:flex items-center space-x-12">
+        <nav aria-label="Main navigation" className="hidden items-center space-x-8 lg:flex">
           {navLinks.map((link, idx) => (
             <motion.a
               key={link.name}
               href={link.href}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              className="text-sm uppercase tracking-widest font-medium text-zinc-400 hover:text-white transition-colors"
+              transition={{ delay: idx * 0.08 }}
+              className="text-[11px] font-medium uppercase tracking-widest text-zinc-400 transition-colors hover:text-white"
             >
               {link.name}
             </motion.a>
           ))}
-          <motion.button
+          <motion.a
+            href={whatsappLink('Hello AERO-FOLD, I would like to ask about your foldable travel bags.')}
+            target="_blank"
+            rel="noopener noreferrer"
             whileHover={{ scale: 1.1 }}
-            className="text-white ml-4"
+            aria-label="Chat with AERO-FOLD on WhatsApp"
+            className="ml-2 text-white"
           >
-            <ShoppingBag size={20} />
-          </motion.button>
+            <MessageCircle size={20} />
+          </motion.a>
         </nav>
 
-        <div className="md:hidden flex items-center space-x-4">
-           <button className="text-white"><ShoppingBag size={20} /></button>
-           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white">
-             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-           </button>
+        <div className="flex items-center space-x-4 lg:hidden">
+          <a
+            href={whatsappLink('Hello AERO-FOLD, I would like to ask about your foldable travel bags.')}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Chat with AERO-FOLD on WhatsApp"
+            className="text-white"
+          >
+            <MessageCircle size={20} />
+          </a>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((open) => !open)}
+            aria-expanded={isMenuOpen}
+            aria-controls="mobile-menu"
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            className="text-white"
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
       </div>
 
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
+            id="mobile-menu"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-[#0a0a0a] border-b border-zinc-800 overflow-hidden"
+            className="overflow-hidden border-b border-zinc-800 bg-[#0a0a0a] lg:hidden"
           >
-            <div className="flex flex-col p-8 space-y-6">
+            <nav aria-label="Mobile navigation" className="flex flex-col space-y-6 p-8">
               {navLinks.map((link) => (
-                <a 
-                  key={link.name} 
-                  href={link.href} 
+                <a
+                  key={link.name}
+                  href={link.href}
                   onClick={() => setIsMenuOpen(false)}
                   className="text-2xl font-light uppercase tracking-widest text-zinc-400 hover:text-white"
                 >
                   {link.name}
                 </a>
               ))}
-            </div>
+            </nav>
           </motion.div>
         )}
       </AnimatePresence>

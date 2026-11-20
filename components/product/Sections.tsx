@@ -72,7 +72,9 @@ const Banner: React.FC<{ content: Content }> = ({ content }) => {
       {image ? (
         <img
           src={image}
-          alt={title}
+          alt={title ? `${title} — foldable travel bag` : 'Foldable travel bag'}
+          width={1600}
+          height={900}
           className="absolute inset-0 h-full w-full object-cover opacity-60"
         />
       ) : null}
@@ -144,7 +146,10 @@ const ImageText: React.FC<{ content: Content }> = ({ content }) => {
           {image ? (
             <img
               src={image}
-              alt={title}
+              alt={title ? `${title} — foldable travel bag` : 'Foldable travel bag'}
+              width={800}
+              height={1000}
+              loading="lazy"
               className="h-full w-full object-cover"
             />
           ) : null}
@@ -269,8 +274,11 @@ const Gallery: React.FC<{ content: Content }> = ({ content }) => {
             >
               <img
                 src={image}
-                alt=""
+                alt={`${title} — image ${index + 1}`}
+                width={800}
+                height={1000}
                 loading="lazy"
+                decoding="async"
                 className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
               />
             </div>

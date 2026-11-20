@@ -41,7 +41,7 @@ function scrollToTarget(id: string, attempt = 0): void {
     return;
   }
   // The target section may not be mounted yet (data still loading).
-  if (attempt < 20) {
+  if (attempt < 40) {
     window.setTimeout(() => scrollToTarget(id, attempt + 1), 50);
   }
 }
@@ -82,6 +82,13 @@ export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({
     const state = location.state as { scrollTo?: string } | null;
     if (state?.scrollTo) {
       scrollToTarget(state.scrollTo);
+    } else if (location.hash) {
+      const id = decodeURIComponent(location.hash.slice(1));
+      if (id) {
+        scrollToTarget(id);
+      } else {
+        window.scrollTo(0, 0);
+      }
     } else {
       window.scrollTo(0, 0);
     }

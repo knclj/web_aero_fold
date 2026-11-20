@@ -154,6 +154,61 @@ function migrate(): void {
       PRAGMA user_version = 2;
     `);
   }
+
+  if (version < 3) {
+    // Give the original placeholder catalogue descriptive titles and copy.
+    // Only untouched seed rows are renamed, so real shop edits are preserved.
+    const update = db.prepare(
+      `UPDATE products
+       SET title = ?, description = ?, updated_at = ?
+       WHERE title = ? AND description = ''
+         AND EXISTS (
+           SELECT 1 FROM product_images
+           WHERE product_images.product_id = products.id
+             AND product_images.url = ?
+         )`,
+    );
+    const now = new Date().toISOString();
+    let renamed = 0;
+
+    tx(() => {
+      seedProducts().forEach((product, index) => {
+        const placeholder = `Series ${String(index + 1).padStart(2, '0')}`;
+        const result = update.run(
+          product.title,
+          product.description,
+          now,
+          placeholder,
+          product.image,
+        );
+        renamed += Number(result.changes);
+      });
+    });
+
+    db.exec('PRAGMA user_version = 3');
+    if (renamed > 0) {
+      console.log(`[db] Added descriptive titles and copy to ${renamed} seed products`);
+    }
+  }
+
+  if (version < 4) {
+    // Keep the primary keyword in every catalogue title.
+    db.exec(`
+      UPDATE products
+      SET title = replace(title,
+        'AERO-FOLD Packable Travel Duffel',
+        'AERO-FOLD Foldable Travel Duffel')
+      WHERE title LIKE 'AERO-FOLD Packable Travel Duffel%';
+
+      UPDATE products
+      SET title = replace(title,
+        'AERO-FOLD Lavender Duffel — ',
+        'AERO-FOLD Foldable Travel Duffel — Lavender ')
+      WHERE title LIKE 'AERO-FOLD Lavender Duffel%';
+
+      PRAGMA user_version = 4;
+    `);
+  }
 }
 
 function seedIfEmpty(): void {

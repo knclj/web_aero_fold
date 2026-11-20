@@ -5,7 +5,7 @@ AERO-FOLD 品牌官网与后台管理系统。前台展示产品，产品卡片�
 ## 技术栈
 
 - 前端：Vite 6 + React 19 + TypeScript + framer-motion + lucide-react
-- 样式：Tailwind CSS（通过 CDN 引入）
+- 样式：Tailwind CSS 3（本地 PostCSS 编译，生产环境不再使用 CDN）
 - 后端：Express 5 + Node.js 内置 SQLite（`node:sqlite`）
 - 数据：SQLite，默认存放在 `server/data/webfold.db`
 - 二维码：`qrcode-generator`（页面内生成 PNG）
@@ -48,6 +48,8 @@ npm run dev
 | `AUTH_SECRET` | 生产必填 | 会话签名密钥，至少 16 个字符，建议 `openssl rand -base64 32` 生成 |
 | `NODE_ENV` | 部署时设为 `production` | 生产模式下启用 `secure` Cookie，并要求上述两个变量 |
 | `VITE_API_BASE_URL` | 否 | 前后端不同域时的 API 地址；同域反代 `/api` 时留空 |
+| `SITE_URL` | 生产建议必填 | 正式域名（如 `https://www.aero-fold.com`，不带末尾 `/`），用于 canonical、Open Graph、sitemap.xml；也可写在项目根目录 `.env` |
+| `SEO_AUTO_REFRESH` | 否 | 设为 `false` 可关闭后台修改产品后的静态 SEO 页面自动刷新 |
 
 示例：
 
@@ -105,6 +107,75 @@ npm run dev:server
 - 删除产品、或在产品编辑中移除图片时，服务端会清理不再被任何产品引用的本地图片文件。
 - 备份：停止服务后同时复制 `server/data/` 与 `server/uploads/` 两个目录；数据库也可以使用 SQLite 的 `.backup` 命令导出单文件。
 
+## SEO（Google 搜索优化）
+
+项目已内置面向 Google 的技术 SEO 与内容结构，无需额外插件。
+
+### 1. 配置正式域名
+
+复制 `.env.example` 为 `.env`，把 `SITE_URL` 改成正式域名：
+
+```bash
+cp .env.example .env
+# 编辑 .env
+SITE_URL=https://www.your-domain.com
+```
+
+`SITE_URL` 用于生成绝对 canonical、`og:url`、`og:image`、`hreflang` 与 `sitemap.xml`。未设置时构建仍可进行，但会跳过 sitemap，社交分享图也可能无法抓取。
+
+### 2. 构建时生成可抓取的静态页面
+
+```bash
+npm run build
+```
+
+`vite build` 之后会自动执行 `scripts/generate-seo.ts`，在 `dist/` 中生成：
+
+| 文件 | 作用 |
+| --- | --- |
+| `dist/index.html` | 首页 title/description/OG/Twitter/Organization/WebSite/ItemList/FAQPage |
+| `dist/product/<id>/index.html` | 每个已发布产品的独立 title/description/canonical/OG/Product/Breadcrumb/FAQ 结构化数据，以及 `<noscript>` 正文 |
+| `dist/admin/index.html` | 后台页面 `noindex, nofollow` |
+| `dist/sitemap.xml` | 首页 + 全部已发布产品（含图片 sitemap），仅在设置 `SITE_URL` 后生成 |
+| `dist/robots.txt` | 允许抓取前台，禁止 `/admin` 与 `/api/` |
+| `dist/404.html` | 品牌化 404 页面，`noindex` |
+
+Nginx 使用下面的 `try_files` 写法时，会优先命中 `dist/product/1/index.html`，所以产品页对 Google 和 WhatsApp/Facebook 等不执行 JS 的抓取器直接可见；未知地址会返回真正的 404，而不是状态码 200 的空壳页。
+
+### 3. 后台修改后自动刷新
+
+API 服务运行时会监听后台的写操作（新增/编辑/删除/排序产品、保存详情区块），约 1.2 秒防抖后重新生成静态页面。要求运行 API 的进程对 `dist/` 有写权限。
+
+也可以手动执行：
+
+```bash
+npm run seo
+```
+
+如果部署时 `dist/` 由 CI 构建、服务器只读，请把 `SEO_AUTO_REFRESH=false`，并在每次发布时重新执行 `npm run build`。
+
+### 4. 提交 Google Search Console
+
+1. 在 [Google Search Console](https://search.google.com/search-console) 添加资源，推荐使用「网域」验证并添加 DNS TXT 记录。
+2. 提交 sitemap：`https://www.your-domain.com/sitemap.xml`。
+3. 对首页和 2–3 个产品页使用「网址检查」→「请求编入索引」。
+4. 用「富媒体搜索结果测试」检查 Product / FAQ / Breadcrumb 结构化数据。
+
+### 5. 内容建议
+
+- 初始 32 个产品的标题、描述已改为带颜色/视图的描述性文案；正式上架时请在后台替换为真实品名、尺寸、材质、容量和价格。标题与描述越具体，长尾词覆盖越好。
+- 每个产品保持唯一 title 与 description；不要堆砌关键词。
+- 产品图建议使用真实场景图 + 白底图，文件名用英文关键词（如 `foldable-travel-duffel-black.webp`），并填写 alt。
+- 首页已有 H1「Foldable travel bags」、批发/OEM 区块与 6 条 FAQ；新增内容时保持一个页面一个 H1。
+- 不要添加虚假的评价、价格或认证；结构化数据中的 Product 只有在后台填写价格时才会输出 `offers`。
+
+### 6. 性能与抓取
+
+- 已移除 Tailwind CDN，改为构建时生成约 36KB CSS；后台与二维码弹窗按路由懒加载。
+- 图片使用 `loading="lazy"`（首屏主图除外）、固定宽高与 `decoding="async"`。
+- 生产环境开启 Nginx gzip/brotli；HTML 建议 `Cache-Control: no-cache`，带 hash 的 `/assets/` 可长缓存。
+- 上线后在 PageSpeed Insights 检查 LCP/CLS/INP；产品图建议转 WebP/AVIF 并压缩到 200KB 以内。
+
 ## 构建与部署
 
 ```bash
@@ -119,7 +190,8 @@ npm start       # 启动 API：tsx server/index.ts
 
 1. 用 Nginx/Caddy 等托管 `dist/`。
 2. 将 `/api` 反向代理到 API 服务（默认 `3001`）。
-3. **配置 SPA 回退**：把 `/product/*`、`/admin/*` 等非静态路径重写到 `index.html`，否则直接打开详情页会 404。
+3. **配置回退**：静态文件优先，后台嵌套路由回退到 `/admin/index.html`，其余未知路径返回 404（配置见下方示例）。构建已为每个产品生成 `dist/product/<id>/index.html`，会优先命中静态页。
+4. 构建前设置 `SITE_URL`，否则不会生成 `sitemap.xml`。
 
 Nginx 示例：
 
@@ -142,7 +214,19 @@ location /uploads/ {
 }
 
 location / {
-  try_files $uri $uri/ /index.html;
+  try_files $uri $uri/ @spa;
+}
+
+location @spa {
+  if ($uri ~ ^/admin(?:/|$)) {
+    rewrite ^ /admin/index.html last;
+  }
+  return 404;
+}
+
+error_page 404 /404.html;
+location = /404.html {
+  internal;
 }
 ```
 

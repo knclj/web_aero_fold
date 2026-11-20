@@ -94,8 +94,10 @@ npm install
 npm run build
 ```
 
-构建成功后会生成 `dist/`。
+构建成功后会生成 `dist/`，并自动为首页、每个已发布产品生成静态 SEO HTML，以及 `robots.txt`；设置 `SITE_URL` 后还会生成 `sitemap.xml`。
 
+> 构建前请先设置 `SITE_URL`（可写入项目根目录 `.env`），否则 canonical/OG 只能使用相对地址，且不会生成 sitemap。
+>
 > 如果服务器内存较小（1GB）导致构建被 kill，可临时增加 swap，或在本地构建后只上传 `dist/`。
 
 ---
@@ -111,6 +113,7 @@ npm run build
 | `AUTH_SECRET` | `openssl rand -base64 32` | 必填，≥16 字符，会话签名密钥 |
 | `HOST` | `127.0.0.1` | 只监听本机，由 Nginx 反代 |
 | `PORT` | `3001` | 与 Nginx 配置一致 |
+| `SITE_URL` | `https://www.your-domain.com` | 生产建议必填；也可写入项目根目录 `.env`。用于 canonical、OG 与 sitemap.xml |
 
 生成密钥：
 
@@ -136,6 +139,7 @@ module.exports = {
         PORT: 3001,
         ADMIN_PASSWORD: '替换成你的强密码',
         AUTH_SECRET: '替换成 openssl 生成的随机字符串',
+        SITE_URL: 'https://www.your-domain.com',
       },
     },
   ],
@@ -240,9 +244,22 @@ server {
         try_files $uri =404;
     }
 
-    # SPA 回退：/product/1、/admin 等直接打开时不 404
+    # 静态页优先；未知地址返回真正的 404，避免“软 404”浪费抓取预算
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri $uri/ @spa;
+    }
+
+    location @spa {
+        # 后台嵌套路由没有静态目录，回退到后台 SPA 入口
+        if ($uri ~ ^/admin(?:/|$)) {
+            rewrite ^ /admin/index.html last;
+        }
+        return 404;
+    }
+
+    error_page 404 /404.html;
+    location = /404.html {
+        internal;
     }
 
     # 如宝塔自动生成了图片/脚本缓存规则，保留即可；
@@ -256,7 +273,34 @@ server {
 nginx -t && nginx -s reload
 ```
 
-### 5.3 为什么要 `^~`
+### 5.3 SEO 静态页面与缓存
+
+`npm run build` 会生成：
+
+```
+dist/index.html                    首页
+dist/product/1/index.html          每个已发布产品的独立静态页
+dist/admin/index.html              noindex
+dist/404.html                      品牌化 404 页面
+dist/robots.txt
+dist/sitemap.xml                   设置 SITE_URL 后生成
+```
+
+`try_files $uri $uri/ @spa;` 会优先命中这些目录下的 `index.html`，所以 Google、WhatsApp、Facebook 等不执行 JS 的抓取器能直接读到产品标题、描述、图片和结构化数据；未知地址由 `@spa` 返回 404 并展示 `dist/404.html`，不会产生“软 404”。
+
+建议给 HTML 加短缓存或协商缓存，避免后台改价/改文案后访客长时间看到旧页面：
+
+```nginx
+location ~* \.html$ {
+    add_header Cache-Control "no-cache";
+}
+```
+
+带 hash 的 `/assets/` 仍可长缓存。后台保存产品后，API 进程会在约 1.2 秒后重写 `dist/` 下的静态页，因此运行 API 的用户必须对 `dist/` 有写权限；如果 `dist/` 只读，请设置 `SEO_AUTO_REFRESH=false`，并在每次发布时重新构建。
+
+上线后到 Google Search Console 提交 `https://你的域名/sitemap.xml`，并用「富媒体搜索结果测试」检查 Product、FAQ、Breadcrumb 结构化数据。
+
+### 5.4 为什么要 `^~`
 
 `^~ /uploads/` 可以避免被宝塔默认的图片正则缓存规则拦截，否则 `/uploads/xxx.png` 会去 `dist/` 里找而 404。
 
@@ -382,11 +426,18 @@ curl http://127.0.0.1:3001/api/health
 
 ### 直接打开 /product/1 或 /admin 是 404
 
-Nginx 缺少 SPA 回退：
+Nginx 缺少静态页/SPA 回退。使用 DEPLOY.md 5.2 的配置：
 
 ```nginx
 location / {
-    try_files $uri $uri/ /index.html;
+    try_files $uri $uri/ @spa;
+}
+
+location @spa {
+    if ($uri ~ ^/admin(?:/|$)) {
+        rewrite ^ /admin/index.html last;
+    }
+    return 404;
 }
 ```
 

@@ -8,3 +8,8 @@ server/data/*.db-wal
 server/data/*.db-shm
 server/uploads/
 ecosystem.config.cjs
+.env
+.env.local
+.seo/
+.seo-shots/
+.seo-assets/

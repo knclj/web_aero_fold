@@ -2,11 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Loader2, Lock } from 'lucide-react';
 import { adminApi, ApiError } from '../../lib/admin-api';
 import { Link } from '../../lib/router';
+import { usePageSeo } from '../../lib/seo';
+import { NOINDEX_ROBOTS } from '../../lib/site';
 
 type AuthStatus = 'checking' | 'anonymous' | 'authenticated';
 
 const AdminGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [status, setStatus] = useState<AuthStatus>('checking');
+
+  usePageSeo(
+    {
+      title: 'Admin | AERO-FOLD',
+      description: 'Private administration area for the AERO-FOLD product catalogue.',
+      canonical: false,
+      robots: NOINDEX_ROBOTS,
+      jsonLd: [],
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;

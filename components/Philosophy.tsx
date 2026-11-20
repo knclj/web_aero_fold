@@ -1,76 +1,65 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const Philosophy: React.FC = () => {
-  const phrases = [
-    { text: "We believe travel should be weightless.", color: "text-white" },
-    { text: "AERO-FOLD engineers bags that disappear when not in use.", color: "text-zinc-500" },
-    { text: "Advanced origami-inspired mechanics meet Italian leather.", color: "text-zinc-600" }
-  ];
+const Philosophy: React.FC = () => (
+  <section id="philosophy" className="scroll-mt-24 bg-[#0a0a0a] py-32 md:py-48">
+    <div className="container mx-auto px-6 md:px-12">
+      <div className="max-w-5xl">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.8 }}
+        >
+          <span className="mb-8 block text-xs uppercase tracking-[0.5em] text-zinc-500">
+            Philosophy
+          </span>
 
-  return (
-    <section id="philosophy" className="py-32 md:py-64 bg-[#0a0a0a]">
-      <div className="container mx-auto px-6 md:px-12">
-        <div className="max-w-5xl">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.5 }}
-            transition={{ duration: 0.8 }}
-          >
-            <span className="text-xs uppercase tracking-[0.5em] text-zinc-500 mb-12 block">Philosophy</span>
-            
-            <div className="space-y-12">
-              {phrases.map((phrase, idx) => (
-                <RevealText key={idx} text={phrase.text} className={`text-4xl md:text-6xl font-light tracking-tight leading-tight ${phrase.color}`} />
-              ))}
-            </div>
-          </motion.div>
-        </div>
+          <h2 className="text-4xl font-light leading-tight tracking-tight text-white md:text-6xl">
+            A foldable bag should
+            {' '}
+            <br />
+            <span className="text-zinc-500">earn its space.</span>
+          </h2>
 
-        <div className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-12 border-t border-zinc-800 pt-16">
-          <FeatureBlock 
-            title="Compact" 
-            desc="Folds down to 5% of its original size. Fits in your pocket, expands for your world." 
-          />
-          <FeatureBlock 
-            title="Durable" 
-            desc="Reinforced carbon-fiber joints tested for over 100,000 fold cycles." 
-          />
-          <FeatureBlock 
-            title="Effortless" 
-            desc="Magnetic auto-lock system. Open or fold in less than 3 seconds." 
-          />
-        </div>
+          <p className="mt-10 max-w-2xl text-base font-light leading-relaxed text-zinc-400 md:text-lg">
+            AERO-FOLD started with a simple idea: the bag you carry should
+            disappear when you do not need it. So we design packable travel bags
+            that fold flat, open quickly and stay comfortable on the move — for
+            weekend trips, carry-on travel and everyday errands.
+          </p>
+        </motion.div>
       </div>
-    </section>
-  );
-};
 
-const RevealText: React.FC<{ text: string; className: string }> = ({ text, className }) => {
-  return (
-    <motion.h2 
-      initial={{ opacity: 0.2, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, margin: "-100px" }}
-      transition={{ duration: 1, ease: "easeOut" }}
-      className={className}
-    >
-      {text}
-    </motion.h2>
-  );
-};
+      <div className="mt-24 grid grid-cols-1 gap-12 border-t border-zinc-800 pt-16 md:grid-cols-3">
+        <FeatureBlock
+          title="Packs flat"
+          desc="Folds into a compact shape for a drawer, suitcase or carry-on, so it is there when you need extra capacity."
+        />
+        <FeatureBlock
+          title="Simple by design"
+          desc="Soft, durable fabric and straightforward hardware keep the bag light, easy to carry and quick to fold."
+        />
+        <FeatureBlock
+          title="Ready to travel"
+          desc="A practical layout for weekend trips and everyday use, with custom logos and packaging available for wholesale orders."
+        />
+      </div>
+    </div>
+  </section>
+);
 
 const FeatureBlock: React.FC<{ title: string; desc: string }> = ({ title, desc }) => (
-  <motion.div 
+  <motion.div
     initial={{ opacity: 0, y: 20 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
     className="group"
   >
-    <h3 className="text-xl font-semibold uppercase tracking-widest mb-4 group-hover:text-zinc-400 transition-colors">{title}</h3>
-    <p className="text-zinc-500 font-light leading-relaxed">{desc}</p>
+    <h3 className="mb-4 text-xl font-semibold uppercase tracking-widest transition-colors group-hover:text-zinc-400">
+      {title}
+    </h3>
+    <p className="font-light leading-relaxed text-zinc-500">{desc}</p>
   </motion.div>
 );
 

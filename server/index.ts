@@ -5,6 +5,7 @@ import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
 import uploadsRouter from './routes/uploads.js';
 import { UPLOAD_DIR } from './lib/upload-files.js';
+import { scheduleSeoRefresh } from './seo/generate.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -31,6 +32,15 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/products', productsRouter);
 app.use('/api/auth', authRouter);
+// Regenerate the crawlable static pages after successful admin mutations.
+app.use('/api/admin', (req, res, next) => {
+  if (req.method !== 'GET') {
+    res.on('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 400) scheduleSeoRefresh();
+    });
+  }
+  next();
+});
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/uploads', uploadsRouter);
 
@@ -68,6 +78,9 @@ if (!isProduction && !process.env.AUTH_SECRET) {
 const server = app.listen(PORT, HOST, () => {
   console.log(`API server running at http://localhost:${PORT}`);
 });
+
+// Keep dist/ in sync with the database (no-op if dist has not been built yet).
+scheduleSeoRefresh();
 
 server.on('error', (err: NodeJS.ErrnoException) => {
   if (err.code === 'EADDRINUSE') {

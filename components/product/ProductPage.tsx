@@ -7,12 +7,23 @@ import {
   Share2,
 } from 'lucide-react';
 import { Link } from '../../lib/router';
-import { fetchProduct, ProductNotFoundError } from '../../lib/products';
+import { fetchProduct, fetchProducts, ProductNotFoundError } from '../../lib/products';
 import { formatPrice, whatsappLink } from '../../lib/format';
 import { defaultSections } from '../../lib/sections';
+import {
+  breadcrumbJsonLd,
+  productJsonLd,
+  productKeywords,
+  productMetaDescription,
+  productPlainDescription,
+  productSeoTitle,
+} from '../../lib/seo-data';
+import { usePageSeo } from '../../lib/seo';
+import { DEFAULT_ROBOTS, NOINDEX_ROBOTS } from '../../lib/site';
 import type { DetailSection, Product } from '../../types/product';
 import { SectionRenderer } from './Sections';
-import ShareQrModal from './ShareQrModal';
+
+const ShareQrModal = React.lazy(() => import('./ShareQrModal'));
 
 interface ProductPageProps {
   id: string;
@@ -34,6 +45,7 @@ const ProductPage: React.FC<ProductPageProps> = ({
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(false);
+  const [related, setRelated] = useState<Product[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,22 +79,74 @@ const ProductPage: React.FC<ProductPageProps> = ({
     };
   }, [id, preview]);
 
-  useEffect(() => {
-    if (!product) return;
-    const previousTitle = document.title;
-    document.title = `${product.title} | AERO-FOLD`;
-    return () => {
-      document.title = previousTitle;
-    };
-  }, [product]);
-
   const renderedSections = useMemo(() => {
     if (!product) return [];
     if (overrideSections && overrideSections.length > 0) {
       return overrideSections;
     }
-    return isCustomized ? sections : defaultSections(product);
+    // The product summary above already renders the description; skip the
+    // duplicate default text section and keep the gallery + CTA sections.
+    return isCustomized
+      ? sections
+      : defaultSections(product).filter((section) => section.type !== 'text');
   }, [product, isCustomized, sections, overrideSections]);
+
+  const seo = useMemo(
+    () => ({
+      title: notFound
+        ? 'Product not found | AERO-FOLD'
+        : product
+          ? productSeoTitle(product)
+          : 'Product | AERO-FOLD',
+      description: product
+        ? productMetaDescription(product)
+        : 'Browse AERO-FOLD foldable travel bags, packable duffels and carry-on totes.',
+      path: `/product/${product?.id ?? id}`,
+      image: product?.images[0]?.url ?? '/og-cover.png',
+      imageAlt: product
+        ? `${product.title} — foldable travel bag by AERO-FOLD`
+        : 'AERO-FOLD foldable travel bags',
+      type: 'product' as const,
+      keywords: product ? productKeywords(product) : undefined,
+      robots: preview || !product ? NOINDEX_ROBOTS : DEFAULT_ROBOTS,
+      canonical: !preview && Boolean(product),
+      jsonLd:
+        product && !preview
+          ? [productJsonLd(product), breadcrumbJsonLd(product)]
+          : [],
+    }),
+    [product, renderedSections, id, preview, notFound],
+  );
+
+  usePageSeo(seo, [seo]);
+
+  useEffect(() => {
+    if (!product) {
+      setRelated([]);
+      return;
+    }
+    let cancelled = false;
+    setRelated([]);
+
+    fetchProducts()
+      .then((all) => {
+        if (cancelled) return;
+        const sameCategory = all.filter(
+          (item) => item.id !== product.id && item.category === product.category,
+        );
+        const otherBags = all.filter(
+          (item) => item.id !== product.id && item.category !== product.category,
+        );
+        setRelated([...sameCategory, ...otherBags].slice(0, 3));
+      })
+      .catch(() => {
+        // Related products are a progressive enhancement.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product]);
 
   const images = product?.images ?? [];
   const mainImage = images[activeImage]?.url ?? images[0]?.url ?? '';
@@ -161,13 +225,41 @@ const ProductPage: React.FC<ProductPageProps> = ({
       {product ? (
         <>
           <main>
+            <nav aria-label="Breadcrumb" className="mx-auto max-w-7xl px-6 pb-4 pt-6 md:px-12">
+              <ol className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-zinc-400">
+                <li>
+                  <Link to="/" className="transition-colors hover:text-black">
+                    Home
+                  </Link>
+                </li>
+                <li aria-hidden="true">/</li>
+                <li>
+                  <Link
+                    to="/"
+                    state={{ scrollTo: 'gallery' }}
+                    className="transition-colors hover:text-black"
+                  >
+                    Foldable travel bags
+                  </Link>
+                </li>
+                <li aria-hidden="true">/</li>
+                <li aria-current="page" className="text-zinc-700">
+                  {product.title}
+                </li>
+              </ol>
+            </nav>
+
             <section className="grid lg:grid-cols-2">
               <div className="bg-[#f4f4f2]">
                 <div className="flex aspect-[4/5] items-center justify-center overflow-hidden">
                   {mainImage ? (
                     <img
                       src={mainImage}
-                      alt={product.title}
+                      alt={`${product.title} — foldable travel bag`}
+                      width={800}
+                      height={1000}
+                      fetchPriority="high"
+                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -186,7 +278,7 @@ const ProductPage: React.FC<ProductPageProps> = ({
                         key={image.id}
                         type="button"
                         onClick={() => setActiveImage(index)}
-                        aria-label={`View image ${index + 1}`}
+                        aria-label={`View ${product.title} image ${index + 1}`}
                         className={`aspect-square overflow-hidden border-2 transition-colors ${
                           index === activeImage
                             ? 'border-black'
@@ -195,7 +287,11 @@ const ProductPage: React.FC<ProductPageProps> = ({
                       >
                         <img
                           src={image.url}
-                          alt=""
+                          alt={`${product.title} — thumbnail ${index + 1}`}
+                          width={160}
+                          height={160}
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full object-cover"
                         />
                       </button>
@@ -220,11 +316,21 @@ const ProductPage: React.FC<ProductPageProps> = ({
                     {formatPrice(product.priceCents)}
                   </p>
 
-                  {product.description ? (
-                    <p className="mt-6 line-clamp-4 whitespace-pre-line text-sm font-light leading-relaxed text-zinc-600 md:text-base">
-                      {product.description}
-                    </p>
-                  ) : null}
+                  <p className="mt-6 whitespace-pre-line text-sm font-light leading-relaxed text-zinc-600 md:text-base">
+                    {productPlainDescription(product)}
+                  </p>
+
+                  <p className="mt-3 text-xs font-light text-zinc-500">
+                    Need custom colors, logos or a wholesale quote?{' '}
+                    <Link
+                      to="/"
+                      state={{ scrollTo: 'wholesale' }}
+                      className="font-semibold text-black underline decoration-zinc-300 underline-offset-4 hover:decoration-black"
+                    >
+                      Ask about custom orders
+                    </Link>
+                    .
+                  </p>
 
                   <div className="mt-10 flex flex-col gap-3 sm:flex-row">
                     <a
@@ -289,6 +395,63 @@ const ProductPage: React.FC<ProductPageProps> = ({
                 product={product}
               />
             ))}
+
+            {related.length > 0 ? (
+              <section
+                aria-labelledby="related-heading"
+                className="border-t border-zinc-200 bg-[#f4f4f2] py-20"
+              >
+                <div className="mx-auto max-w-7xl px-6 md:px-12">
+                  <div className="mb-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                    <div>
+                      <span className="mb-3 block text-[10px] uppercase tracking-[0.4em] text-zinc-500">
+                        Keep exploring
+                      </span>
+                      <h2
+                        id="related-heading"
+                        className="text-3xl font-black uppercase tracking-tighter md:text-4xl"
+                      >
+                        More foldable travel bags
+                      </h2>
+                    </div>
+                    <Link
+                      to="/"
+                      state={{ scrollTo: 'gallery' }}
+                      className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500 transition-colors hover:text-black"
+                    >
+                      View all
+                      <ArrowUpRight size={14} />
+                    </Link>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {related.map((item) => (
+                      <Link key={item.id} to={`/product/${item.id}`} className="group block">
+                        <div className="aspect-[4/5] overflow-hidden bg-white">
+                          {item.images[0] ? (
+                            <img
+                              src={item.images[0].url}
+                              alt={`${item.title} — foldable travel bag`}
+                              width={800}
+                              height={1000}
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            />
+                          ) : null}
+                        </div>
+                        <h3 className="mt-4 text-sm font-bold uppercase tracking-wide">
+                          {item.title}
+                        </h3>
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.3em] text-zinc-500">
+                          {item.category || 'Travel bag'}
+                        </p>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </main>
 
           <footer className="border-t border-white/10 bg-[#0a0a0a] py-10 text-white">
@@ -310,7 +473,9 @@ const ProductPage: React.FC<ProductPageProps> = ({
       ) : null}
 
       {showQr && product ? (
-        <ShareQrModal product={product} onClose={() => setShowQr(false)} />
+        <React.Suspense fallback={null}>
+          <ShareQrModal product={product} onClose={() => setShowQr(false)} />
+        </React.Suspense>
       ) : null}
     </div>
   );
