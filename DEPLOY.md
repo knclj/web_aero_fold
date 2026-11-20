@@ -300,6 +300,8 @@ location ~* \.html$ {
 
 上线后到 Google Search Console 提交 `https://你的域名/sitemap.xml`，并用「富媒体搜索结果测试」检查 Product、FAQ、Breadcrumb 结构化数据。
 
+> 主机名必须唯一。本项目 `.env` 使用 `https://www.vijery.shop`，因此裸域 `vijery.shop` 也应添加 A 记录并 301 到 `https://www.vijery.shop`，不要让两个主机名同时返回 200；否则 canonical 虽然只指向 www，但裸域仍可能被单独抓取，稀释权重。
+
 ### 5.4 为什么要 `^~`
 
 `^~ /uploads/` 可以避免被宝塔默认的图片正则缓存规则拦截，否则 `/uploads/xxx.png` 会去 `dist/` 里找而 404。
