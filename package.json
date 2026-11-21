@@ -9,7 +9,7 @@
     "dev:server": "tsx watch server/index.ts",
     "start": "tsx server/index.ts",
     "dev:all": "npm run dev",
-    "build": "vite build && tsx scripts/generate-seo.ts",
+    "build": "tsx scripts/clean-dist.ts && vite build && tsx scripts/generate-seo.ts",
     "seo": "tsx scripts/generate-seo.ts",
     "preview": "vite preview"
   },

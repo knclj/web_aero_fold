@@ -28,6 +28,12 @@ export default defineConfig(({ mode }) => {
         },
       },
       plugins: [react()],
+      build: {
+        // BT Panel puts an immutable .user.ini inside dist. Vite's default
+        // emptyOutDir would try to delete it and fail with EPERM.
+        // scripts/clean-dist.ts clears old artifacts but keeps dotfiles.
+        emptyOutDir: false,
+      },
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)

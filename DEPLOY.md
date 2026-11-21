@@ -443,6 +443,22 @@ location @spa {
 }
 ```
 
+### `npm run build` 报 EPERM：`.user.ini`
+
+宝塔会在站点根目录（包括 `dist/`）生成受保护的 `.user.ini`，Vite 默认清空 `dist/` 时会尝试删除它，于是报：
+
+```text
+EPERM, Operation not permitted: '/www/wwwroot/.../dist/.user.ini'
+```
+
+项目已处理：`vite.config.ts` 设置 `build.emptyOutDir: false`，构建前由 `scripts/clean-dist.ts` 删除普通构建产物，但保留 `.user.ini`、`.well-known` 等点文件。请确认使用：
+
+```bash
+npm run build
+```
+
+而不是直接执行 `vite build`。不要对 `.user.ini` 执行 `chattr -i` 或手动删除，宝塔的防跨站保护会继续重建它。
+
 ### 上传图片返回 413
 
 Nginx 请求体限制太小，在 `server` 块加：
